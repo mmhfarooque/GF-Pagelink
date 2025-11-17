@@ -1,0 +1,304 @@
+/**
+ * Gravity Page Link View - Admin Styles
+ * @author Mahmud Farooque
+ */
+
+.gplv-wrap {
+    margin: 20px 20px 0 0;
+}
+
+.gplv-wrap h1 {
+    margin-bottom: 10px;
+}
+
+.gplv-wrap .description {
+    font-size: 14px;
+    margin-bottom: 20px;
+}
+
+/* Container Layout */
+.gplv-container {
+    display: flex;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+/* Sidebar - Forms List */
+.gplv-sidebar {
+    flex: 0 0 350px;
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+    padding: 20px;
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+}
+
+.gplv-sidebar h2 {
+    margin-top: 0;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #2271b1;
+    font-size: 18px;
+}
+
+.gplv-form-list {
+    list-style: none;
+    margin: 15px 0 0 0;
+    padding: 0;
+}
+
+.gplv-form-item {
+    padding: 15px;
+    margin-bottom: 10px;
+    background: #f6f7f7;
+    border: 1px solid #dcdcde;
+    border-left: 4px solid #2271b1;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.gplv-form-item:hover {
+    background: #fff;
+    border-left-color: #135e96;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.gplv-form-item.active {
+    background: #fff;
+    border-left-color: #d63638;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.gplv-form-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.gplv-form-id {
+    background: #2271b1;
+    color: #fff;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.gplv-form-item.active .gplv-form-id {
+    background: #d63638;
+}
+
+.gplv-form-title {
+    font-weight: 600;
+    font-size: 14px;
+    color: #1d2327;
+}
+
+.gplv-form-meta {
+    font-size: 12px;
+    color: #646970;
+}
+
+.gplv-usage-count {
+    display: inline-block;
+}
+
+.gplv-no-forms {
+    color: #646970;
+    font-style: italic;
+    text-align: center;
+    padding: 20px;
+}
+
+/* Content Area - Usage Details */
+.gplv-content {
+    flex: 1;
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+    padding: 20px;
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+}
+
+.gplv-content h2 {
+    margin-top: 0;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #2271b1;
+    font-size: 18px;
+}
+
+.gplv-usage-section {
+    margin-bottom: 30px;
+    padding-bottom: 30px;
+    border-bottom: 1px solid #dcdcde;
+}
+
+.gplv-usage-section:last-child {
+    border-bottom: none;
+}
+
+.gplv-usage-section.hidden {
+    display: none;
+}
+
+.gplv-usage-section h3 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #1d2327;
+}
+
+.gplv-form-id-badge {
+    background: #f0f0f1;
+    color: #2271b1;
+    padding: 4px 10px;
+    border-radius: 3px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.gplv-no-usage {
+    color: #646970;
+    font-style: italic;
+    padding: 15px;
+    background: #f6f7f7;
+    border-left: 4px solid #dba617;
+    margin: 0;
+}
+
+/* Usage Table */
+.gplv-usage-table {
+    margin-top: 15px;
+}
+
+.gplv-usage-table th {
+    font-weight: 600;
+    text-align: left;
+    padding: 12px;
+}
+
+.gplv-usage-table td {
+    padding: 12px;
+    vertical-align: middle;
+}
+
+.gplv-post-type-badge {
+    display: inline-block;
+    background: #f0f0f1;
+    color: #50575e;
+    padding: 4px 10px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: capitalize;
+}
+
+.gplv-actions {
+    white-space: nowrap;
+}
+
+.gplv-actions .button {
+    margin-right: 5px;
+}
+
+.gplv-actions .button:last-child {
+    margin-right: 0;
+}
+
+/* Responsive Design */
+@media screen and (max-width: 1200px) {
+    .gplv-container {
+        flex-direction: column;
+    }
+
+    .gplv-sidebar {
+        flex: 1;
+        max-height: 400px;
+    }
+
+    .gplv-content {
+        max-height: none;
+    }
+}
+
+@media screen and (max-width: 782px) {
+    .gplv-sidebar {
+        padding: 15px;
+    }
+
+    .gplv-content {
+        padding: 15px;
+    }
+
+    .gplv-form-item {
+        padding: 12px;
+    }
+
+    .gplv-actions .button {
+        display: block;
+        margin-bottom: 5px;
+        margin-right: 0;
+        width: 100%;
+    }
+
+    .gplv-usage-table {
+        font-size: 13px;
+    }
+
+    .gplv-usage-table th,
+    .gplv-usage-table td {
+        padding: 8px;
+    }
+}
+
+/* Loading State */
+.gplv-loading {
+    text-align: center;
+    padding: 40px;
+    color: #646970;
+}
+
+.gplv-loading:before {
+    content: "";
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid #f0f0f1;
+    border-top-color: #2271b1;
+    border-radius: 50%;
+    animation: gplv-spin 0.8s linear infinite;
+    margin-right: 10px;
+    vertical-align: middle;
+}
+
+@keyframes gplv-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Scrollbar Styling */
+.gplv-sidebar::-webkit-scrollbar,
+.gplv-content::-webkit-scrollbar {
+    width: 10px;
+}
+
+.gplv-sidebar::-webkit-scrollbar-track,
+.gplv-content::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.gplv-sidebar::-webkit-scrollbar-thumb,
+.gplv-content::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 5px;
+}
+
+.gplv-sidebar::-webkit-scrollbar-thumb:hover,
+.gplv-content::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
