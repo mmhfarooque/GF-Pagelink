@@ -13,26 +13,59 @@ This plugin is perfect for WordPress administrators who need to quickly find whe
 
 ## Author
 
-**Mahmud Farooque**
+**Jezweb**
+Website: [https://jezweb.com.au](https://jezweb.com.au)
+Developer: Mahmud Farooque
 
 ## Features
 
-- **Two-Column Dashboard Layout**: Easy-to-navigate interface with forms on the left and usage details on the right
-- **Active Forms Only**: Displays only active Gravity Forms
-- **Comprehensive Form Detection**: Detects forms in:
-  - Classic Editor shortcodes `[gravityform id="X"]`
-  - Gutenberg blocks (Gravity Forms blocks)
-- **Usage Statistics**: Shows how many locations each form is used in
-- **Direct Navigation**: Quick links to view or edit pages containing forms
-- **Responsive Design**: Works well on desktop and mobile devices
-- **Keyboard Navigation**: Use arrow keys to navigate between forms
-- **Smooth Interactions**: Click on any form to see its usage details instantly
+### Form Detection
+- **Universal Page Builder Support**: Detects forms in ALL major page builders:
+  - Elementor (including Theme Builder templates)
+  - Divi Builder (including Theme Builder)
+  - Beaver Builder (including Themer)
+  - Oxygen Builder
+  - Bricks Builder
+  - Fusion Builder (Avada theme)
+  - WPBakery (Visual Composer)
+  - SiteOrigin Page Builder
+- **Content Editor Support**:
+  - Gutenberg blocks (native Gravity Forms blocks)
+  - Classic Editor shortcodes `[gravityform]`, `[gravityforms]`
+  - Reusable blocks and patterns
+- **Advanced Detection**:
+  - Widgets and sidebars
+  - Custom fields (ACF compatible)
+  - All custom post types
+  - Theme builder locations (headers, footers, templates)
+
+### Dashboard Interface
+- **Two-Column Layout**: Forms list on left, usage details on right
+- **Detection Method Tracking**: Shows HOW each form was detected
+- **Tabbed Interface**: Separate tabs for Form Locations and Debug Logs
+- **Usage Statistics**: Real-time count of where each form is used
+- **Direct Navigation**: Quick links to view or edit pages
+- **Responsive Design**: Works on desktop, tablet, and mobile
+
+### Debug & Troubleshooting
+- **Debug Logging System**: Enable detailed logging of detection attempts
+- **Log Viewer**: View all detection logs directly in dashboard
+- **Log Export**: Download logs as .log file for troubleshooting
+- **Clear Logs**: One-click log cleanup
+- **Upgrade Handling**: Automatic version tracking and upgrade management
 
 ## Requirements
 
-- WordPress 5.0 or higher
-- Gravity Forms plugin (active)
-- PHP 7.0 or higher
+**Minimum Requirements:**
+- **WordPress:** 5.0 or higher
+- **PHP:** 7.2 or higher
+- **Gravity Forms:** Latest version (plugin must be active)
+
+**Recommended:**
+- WordPress: 6.0 or higher
+- PHP: 8.0 or higher
+
+**Note:** The plugin will automatically check requirements on activation and display an error message if your environment doesn't meet the minimum requirements.
 
 ## Installation
 
@@ -86,20 +119,87 @@ This plugin is compatible with all modern versions of Gravity Forms that support
 
 ### Will it detect forms in custom post types?
 
-Currently, the plugin scans only 'post' and 'page' post types. Custom post type support can be added if needed.
+Yes! Version 2.0.0 and above automatically scans ALL public post types, including custom post types.
 
 ### Does it affect my site's performance?
 
 The plugin only runs in the WordPress admin area and does not affect your frontend performance. The scanning happens only when you view the dashboard page.
 
-### Can I export this data?
+### Can I export debug logs?
 
-The current version displays the data in a dashboard. Export functionality can be added in future versions.
+Yes! Go to the Debug Logs tab and click "Export Logs" to download a .log file with all detection attempts and results.
+
+### What if my form isn't being detected?
+
+1. Go to the "Debug Logs" tab
+2. Enable "Debug Mode" and save
+3. Go back to "Form Locations" tab (this triggers a scan)
+4. Return to "Debug Logs" to see exactly what was checked and why the form wasn't found
 
 ## Changelog
 
+### Version 2.0.1 (Current)
+**Bug Fix Release**
+
+**Requirements:**
+- WordPress 5.0+
+- PHP 7.2+
+- Gravity Forms (active)
+
+#### Bug Fixes
+- 🐛 **Fixed Elementor WordPress Form Widget Detection**: Now properly detects Gravity Forms added via the WordPress "Form" widget in Elementor
+- 🐛 **Enhanced Elementor Detection**: Added support for wp-widget-* widgets and any widget containing "form" in the name
+- 🐛 **Improved Form ID Matching**: Better regex patterns for form_id and formId in various formats
+- 🔧 **Better Widget Settings Parsing**: Now checks wp.widget_instance and other nested widget data structures
+
+#### What This Fixes
+If you were using the WordPress Widgets → Form widget in Elementor (not the native Gravity Forms Elementor widget), the plugin wasn't detecting your forms. This release fixes that detection.
+
+### Version 2.0.0
+**Major Update - Universal Page Builder Support**
+
+**Requirements:**
+- WordPress 5.0+
+- PHP 7.2+
+- Gravity Forms (active)
+
+#### New Features
+- ✨ **Universal Page Builder Detection**: Added support for 9 major page builders
+  - Elementor & Elementor Pro Theme Builder
+  - Divi Builder & Divi Theme Builder
+  - Beaver Builder & Beaver Themer
+  - Oxygen Builder
+  - Bricks Builder
+  - Fusion Builder (Avada)
+  - WPBakery (Visual Composer)
+  - SiteOrigin Page Builder
+- ✨ **Reusable Blocks**: Detects forms in WordPress reusable blocks
+- ✨ **Theme Builder Templates**: Finds forms in headers, footers, and templates
+- ✨ **Widget Support**: Detects forms in sidebars and widget areas
+- ✨ **Custom Post Types**: Automatically scans all public post types
+- ✨ **Detection Method Tracking**: Shows exactly HOW each form was detected
+- ✨ **Debug Logging System**: Complete troubleshooting and logging system
+- ✨ **Log Viewer**: View detection logs directly in dashboard
+- ✨ **Log Export**: Download logs as .log file
+- ✨ **Tabbed Interface**: Separate tabs for Form Locations and Debug Logs
+
+#### Improvements
+- 🔧 **Enhanced Shortcode Detection**: Better regex patterns for all variations
+- 🔧 **Custom Field Support**: Scans ACF and all post meta fields
+- 🔧 **Upgrade System**: Automatic version tracking and upgrade handling
+- 🔧 **Activation Hook**: Proper initialization on plugin activation
+- 🔧 **Uninstall Cleanup**: Clean removal of all plugin data
+
+#### Developer
+- 📦 **Proper Versioning**: Database version tracking for upgrades
+- 📦 **Version Requirements**: Automatic WordPress 5.0+ and PHP 7.2+ checking
+- 📦 **Uninstall Script**: Complete cleanup on plugin deletion
+- 📦 **Multisite Support**: Works on WordPress multisite networks
+- 📦 **WordPress Standards**: Follows WordPress coding standards
+
 ### Version 1.0.0
-- Initial release
+**Initial Release**
+- Basic form detection
 - Display all active Gravity Forms
 - Show page locations where forms are used
 - Support for shortcodes and Gutenberg blocks
@@ -111,12 +211,17 @@ The current version displays the data in a dashboard. Export functionality can b
 ### File Structure
 ```
 gravity-page-link-view/
-├── gravity-page-link-view.php    # Main plugin file
+├── gravity-page-link-view.php    # Main plugin file (1300+ lines)
+├── uninstall.php                 # Uninstall cleanup script
 ├── assets/
 │   ├── css/
-│   │   └── admin-style.css       # Admin dashboard styles
-│   └── js/
-│       └── admin-script.js       # Admin dashboard JavaScript
+│   │   ├── admin-style.css       # Admin dashboard styles
+│   │   └── index.php             # Security file
+│   ├── js/
+│   │   ├── admin-script.js       # Admin dashboard JavaScript
+│   │   └── index.php             # Security file
+│   └── index.php                 # Security file
+├── index.php                     # Security file
 └── README.md                      # Documentation
 ```
 
@@ -129,15 +234,18 @@ The plugin uses standard WordPress hooks:
 ## Future Enhancements
 
 Potential features for future versions:
-- Custom post type support
-- Export to CSV functionality
-- Widget/template detection
-- Form usage analytics
-- Bulk operations
+- CSV export of form usage data
+- Form usage analytics and statistics
+- Bulk operations on forms
+- Email notifications when forms are added/removed
+- Performance optimization for large sites
+- Integration with popular SEO plugins
 
 ## Credits
 
-Developed by **Mahmud Farooque**
+**Author:** Jezweb
+**Developer:** Mahmud Farooque
+**Website:** [https://jezweb.com.au](https://jezweb.com.au)
 
 ## License
 
@@ -155,6 +263,42 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 ```
 
+## Version Management
+
+### For Developers: How to Update Plugin Version
+
+When releasing a new version, follow these steps:
+
+1. **Update Version Numbers:**
+   - Line 6: Plugin header `Version: X.X.X`
+   - Line 21: `define( 'GPLV_VERSION', 'X.X.X' );`
+
+2. **Add Changelog Entry:**
+   - Update README.md with new version changes
+
+3. **Add Upgrade Steps (if needed):**
+   - Add version-specific code in `gplv_upgrade()` function
+   ```php
+   if ( version_compare( $from_version, 'X.X.X', '<' ) ) {
+       // Your upgrade steps here
+   }
+   ```
+
+4. **Test Upgrade:**
+   - Install over previous version
+   - Verify settings are preserved
+   - Check new features work correctly
+
+5. **Create Release Zip:**
+   - Package plugin directory
+   - Test installation on clean WordPress
+
+### Versioning Scheme
+
+- **Major (X.0.0)**: Breaking changes, major new features
+- **Minor (2.X.0)**: New features, enhancements, no breaking changes
+- **Patch (2.0.X)**: Bug fixes, small improvements
+
 ## Support
 
-For issues, questions, or contributions, please contact the developer.
+For issues, questions, or contributions, please visit [https://jezweb.com.au](https://jezweb.com.au)
