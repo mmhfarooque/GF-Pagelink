@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name: Gravity Page Link View
+ * Plugin Name: Jezweb GF Pagelink
  * Plugin URI: https://jezweb.com.au/gravity-page-link-view
  * Description: Display all active Gravity Forms with page links where they are used. Supports all major page builders: Elementor, Divi, Beaver Builder, Oxygen, Bricks, Fusion (Avada), WPBakery, SiteOrigin, and more!
- * Version: 2.0.1
+ * Version: 2.1.0
  * Requires at least: 5.0
  * Requires PHP: 7.2
  * Author: Jezweb
@@ -13,6 +13,8 @@
  * License URI: http://www.gnu.org/licenses/gpl-2.0.txt
  * Text Domain: gravity-page-link-view
  * Domain Path: /languages
+ * Update URI: https://github.com/mmhfarooque/GF-Pagelink
+ * GitHub Plugin URI: mmhfarooque/GF-Pagelink
  */
 
 // If this file is called directly, abort.
@@ -21,11 +23,321 @@ if ( ! defined( 'WPINC' ) ) {
 }
 
 // Define plugin constants
-define( 'GPLV_VERSION', '2.0.1' );
+define( 'GPLV_VERSION', '2.1.0' );
 define( 'GPLV_MIN_WP_VERSION', '5.0' );
 define( 'GPLV_MIN_PHP_VERSION', '7.2' );
 define( 'GPLV_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'GPLV_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+define( 'GPLV_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
+define( 'GPLV_GITHUB_REPO', 'mmhfarooque/GF-Pagelink' );
+
+/**
+ * GitHub Plugin Updater Class
+ *
+ * Handles automatic updates from GitHub releases
+ */
+class GPLV_GitHub_Updater {
+
+    /**
+     * Plugin slug
+     */
+    private $slug;
+
+    /**
+     * Plugin data
+     */
+    private $plugin_data;
+
+    /**
+     * GitHub username
+     */
+    private $github_username;
+
+    /**
+     * GitHub repository name
+     */
+    private $github_repo;
+
+    /**
+     * Plugin file path
+     */
+    private $plugin_file;
+
+    /**
+     * GitHub API response
+     */
+    private $github_response;
+
+    /**
+     * Constructor
+     *
+     * @param string $plugin_file Path to the main plugin file
+     */
+    public function __construct( $plugin_file ) {
+        $this->plugin_file = $plugin_file;
+
+        // Parse GitHub repo
+        $repo_parts = explode( '/', GPLV_GITHUB_REPO );
+        $this->github_username = $repo_parts[0];
+        $this->github_repo = $repo_parts[1];
+
+        add_filter( 'pre_set_site_transient_update_plugins', array( $this, 'check_update' ) );
+        add_filter( 'plugins_api', array( $this, 'plugin_info' ), 20, 3 );
+        add_filter( 'upgrader_post_install', array( $this, 'after_install' ), 10, 3 );
+
+        // Enable auto-updates for this plugin
+        add_filter( 'auto_update_plugin', array( $this, 'auto_update' ), 10, 2 );
+        add_filter( 'plugin_auto_update_setting_html', array( $this, 'auto_update_setting_html' ), 10, 3 );
+    }
+
+    /**
+     * Get plugin data
+     */
+    private function init_plugin_data() {
+        $this->slug = plugin_basename( $this->plugin_file );
+        $this->plugin_data = get_plugin_data( $this->plugin_file );
+    }
+
+    /**
+     * Get GitHub release info
+     */
+    private function get_github_release_info() {
+        if ( ! empty( $this->github_response ) ) {
+            return;
+        }
+
+        // Build API URL for latest release
+        $api_url = sprintf(
+            'https://api.github.com/repos/%s/%s/releases/latest',
+            $this->github_username,
+            $this->github_repo
+        );
+
+        // Make API request
+        $response = wp_remote_get( $api_url, array(
+            'headers' => array(
+                'Accept' => 'application/vnd.github.v3+json',
+            ),
+            'timeout' => 10,
+        ) );
+
+        if ( is_wp_error( $response ) || wp_remote_retrieve_response_code( $response ) !== 200 ) {
+            return;
+        }
+
+        $this->github_response = json_decode( wp_remote_retrieve_body( $response ) );
+    }
+
+    /**
+     * Check for plugin updates
+     *
+     * @param object $transient Update transient
+     * @return object Modified transient
+     */
+    public function check_update( $transient ) {
+        if ( empty( $transient->checked ) ) {
+            return $transient;
+        }
+
+        $this->init_plugin_data();
+        $this->get_github_release_info();
+
+        if ( empty( $this->github_response ) ) {
+            return $transient;
+        }
+
+        // Get version from GitHub (remove 'v' prefix if present)
+        $github_version = ltrim( $this->github_response->tag_name, 'v' );
+        $current_version = $this->plugin_data['Version'];
+
+        // Compare versions
+        if ( version_compare( $github_version, $current_version, '>' ) ) {
+            // Find the zip file in assets or use zipball
+            $download_url = $this->get_download_url();
+
+            $plugin = array(
+                'slug'        => dirname( $this->slug ),
+                'plugin'      => $this->slug,
+                'new_version' => $github_version,
+                'url'         => $this->plugin_data['PluginURI'],
+                'package'     => $download_url,
+                'icons'       => array(),
+                'banners'     => array(),
+                'tested'      => '',
+                'requires_php' => GPLV_MIN_PHP_VERSION,
+                'compatibility' => new stdClass(),
+            );
+
+            $transient->response[ $this->slug ] = (object) $plugin;
+        }
+
+        return $transient;
+    }
+
+    /**
+     * Get download URL from GitHub release
+     */
+    private function get_download_url() {
+        // First, check for a zip file in release assets
+        if ( ! empty( $this->github_response->assets ) ) {
+            foreach ( $this->github_response->assets as $asset ) {
+                if ( substr( $asset->name, -4 ) === '.zip' ) {
+                    return $asset->browser_download_url;
+                }
+            }
+        }
+
+        // Fall back to zipball URL
+        return $this->github_response->zipball_url;
+    }
+
+    /**
+     * Plugin information for the update details popup
+     *
+     * @param false|object|array $result Result
+     * @param string $action API action
+     * @param object $args Arguments
+     * @return false|object
+     */
+    public function plugin_info( $result, $action, $args ) {
+        if ( $action !== 'plugin_information' ) {
+            return $result;
+        }
+
+        $this->init_plugin_data();
+
+        if ( ! isset( $args->slug ) || $args->slug !== dirname( $this->slug ) ) {
+            return $result;
+        }
+
+        $this->get_github_release_info();
+
+        if ( empty( $this->github_response ) ) {
+            return $result;
+        }
+
+        $github_version = ltrim( $this->github_response->tag_name, 'v' );
+
+        $plugin_info = array(
+            'name'              => $this->plugin_data['Name'],
+            'slug'              => dirname( $this->slug ),
+            'version'           => $github_version,
+            'author'            => $this->plugin_data['Author'],
+            'author_profile'    => $this->plugin_data['AuthorURI'],
+            'homepage'          => $this->plugin_data['PluginURI'],
+            'requires'          => GPLV_MIN_WP_VERSION,
+            'tested'            => get_bloginfo( 'version' ),
+            'requires_php'      => GPLV_MIN_PHP_VERSION,
+            'downloaded'        => 0,
+            'last_updated'      => $this->github_response->published_at,
+            'sections'          => array(
+                'description'   => $this->plugin_data['Description'],
+                'changelog'     => $this->parse_changelog( $this->github_response->body ),
+            ),
+            'download_link'     => $this->get_download_url(),
+        );
+
+        return (object) $plugin_info;
+    }
+
+    /**
+     * Parse changelog from GitHub release body
+     *
+     * @param string $body Release body/notes
+     * @return string Formatted changelog
+     */
+    private function parse_changelog( $body ) {
+        if ( empty( $body ) ) {
+            return '<p>See the <a href="https://github.com/' . GPLV_GITHUB_REPO . '/releases" target="_blank">GitHub releases page</a> for the full changelog.</p>';
+        }
+
+        // Convert markdown to basic HTML
+        $changelog = esc_html( $body );
+        $changelog = nl2br( $changelog );
+
+        return '<div class="changelog">' . $changelog . '</div>';
+    }
+
+    /**
+     * After install, rename folder to match expected plugin directory
+     *
+     * @param bool  $response   Installation response
+     * @param array $hook_extra Extra arguments
+     * @param array $result     Installation result
+     * @return array Modified result
+     */
+    public function after_install( $response, $hook_extra, $result ) {
+        global $wp_filesystem;
+
+        $this->init_plugin_data();
+
+        // Check if this is our plugin
+        if ( ! isset( $hook_extra['plugin'] ) || $hook_extra['plugin'] !== $this->slug ) {
+            return $result;
+        }
+
+        // Get the expected plugin directory name
+        $plugin_folder = dirname( $this->slug );
+        $proper_destination = WP_PLUGIN_DIR . '/' . $plugin_folder;
+
+        // Move to proper location if needed
+        if ( $result['destination'] !== $proper_destination ) {
+            $wp_filesystem->move( $result['destination'], $proper_destination );
+            $result['destination'] = $proper_destination;
+        }
+
+        // Re-activate the plugin if it was active
+        if ( is_plugin_active( $this->slug ) ) {
+            activate_plugin( $this->slug );
+        }
+
+        return $result;
+    }
+
+    /**
+     * Enable auto-updates for this plugin
+     *
+     * @param bool   $update Whether to auto-update
+     * @param object $item   Plugin update data
+     * @return bool
+     */
+    public function auto_update( $update, $item ) {
+        if ( isset( $item->slug ) && dirname( $this->slug ) === $item->slug ) {
+            // Allow users to control this via WordPress auto-update settings
+            $auto_updates = (array) get_site_option( 'auto_update_plugins', array() );
+            return in_array( $this->slug, $auto_updates, true );
+        }
+        return $update;
+    }
+
+    /**
+     * Customize auto-update setting HTML
+     *
+     * @param string $html   HTML output
+     * @param string $plugin Plugin file
+     * @param array  $plugin_data Plugin data
+     * @return string
+     */
+    public function auto_update_setting_html( $html, $plugin, $plugin_data ) {
+        if ( $plugin === $this->slug ) {
+            // Add note about GitHub updates
+            $html .= '<br><small style="color: #666;">' .
+                     esc_html__( 'Updates from GitHub', 'gravity-page-link-view' ) .
+                     '</small>';
+        }
+        return $html;
+    }
+}
+
+/**
+ * Initialize GitHub Updater
+ */
+function gplv_init_updater() {
+    if ( is_admin() ) {
+        new GPLV_GitHub_Updater( __FILE__ );
+    }
+}
+add_action( 'init', 'gplv_init_updater' );
 
 /**
  * Check plugin requirements
@@ -115,6 +427,44 @@ class Gravity_Page_Link_View {
         add_action( 'admin_init', array( $this, 'register_settings' ) );
         add_action( 'admin_post_gplv_export_logs', array( $this, 'export_debug_logs' ) );
         add_action( 'admin_post_gplv_clear_logs', array( $this, 'clear_debug_logs' ) );
+
+        // Add plugin action links
+        add_filter( 'plugin_action_links_' . GPLV_PLUGIN_BASENAME, array( $this, 'plugin_action_links' ) );
+        add_filter( 'plugin_row_meta', array( $this, 'plugin_row_meta' ), 10, 2 );
+    }
+
+    /**
+     * Add action links to plugins page
+     *
+     * @param array $links Existing links
+     * @return array Modified links
+     */
+    public function plugin_action_links( $links ) {
+        $plugin_links = array(
+            '<a href="' . admin_url( 'admin.php?page=gravity-page-link-view' ) . '">' .
+            __( 'View Forms', 'gravity-page-link-view' ) . '</a>',
+        );
+        return array_merge( $plugin_links, $links );
+    }
+
+    /**
+     * Add row meta links to plugins page
+     *
+     * @param array  $links Existing links
+     * @param string $file  Plugin file
+     * @return array Modified links
+     */
+    public function plugin_row_meta( $links, $file ) {
+        if ( GPLV_PLUGIN_BASENAME === $file ) {
+            $row_meta = array(
+                'github' => '<a href="https://github.com/' . GPLV_GITHUB_REPO . '" target="_blank">' .
+                           __( 'GitHub', 'gravity-page-link-view' ) . '</a>',
+                'support' => '<a href="https://github.com/' . GPLV_GITHUB_REPO . '/issues" target="_blank">' .
+                            __( 'Support', 'gravity-page-link-view' ) . '</a>',
+            );
+            return array_merge( $links, $row_meta );
+        }
+        return $links;
     }
 
     /**
@@ -129,8 +479,8 @@ class Gravity_Page_Link_View {
      */
     public function add_admin_menu() {
         add_menu_page(
-            __( 'Gravity Page Link View', 'gravity-page-link-view' ),
-            __( 'GF Page Links', 'gravity-page-link-view' ),
+            __( 'Jezweb GF Pagelink', 'gravity-page-link-view' ),
+            __( 'GF Pagelink', 'gravity-page-link-view' ),
             'manage_options',
             'gravity-page-link-view',
             array( $this, 'render_admin_page' ),
