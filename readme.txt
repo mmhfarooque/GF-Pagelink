@@ -4,7 +4,7 @@ Tags: gravity forms, form locations, page builder, elementor, divi
 Requires at least: 5.0
 Tested up to: 6.7
 Requires PHP: 7.2
-Stable tag: 2.1.0
+Stable tag: 2.2.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -72,6 +72,20 @@ Yes! The plugin checks for updates from GitHub releases and can be auto-updated 
 
 == Changelog ==
 
+= 2.2.0 =
+* SECURITY: Added capability checks to export and clear log functions
+* SECURITY: Added security headers for file downloads (X-Content-Type-Options, X-Frame-Options)
+* SECURITY: Added sensitive data redaction in debug log exports
+* SECURITY: Added form_id validation to prevent ReDoS attacks
+* SECURITY: Added API response caching to prevent rate limiting
+* SECURITY: Added whitelist validation for tab parameters
+* SECURITY: Improved nonce verification with proper error handling
+* SECURITY: Added proper output escaping throughout (esc_html_e, esc_url, esc_js)
+* SECURITY: Added SSL verification for GitHub API requests
+* SECURITY: Use wp_safe_redirect instead of wp_redirect
+* IMPROVED: Added User-Agent header for GitHub API requests
+* IMPROVED: Better error handling for security failures
+
 = 2.1.0 =
 * NEW: Added GitHub-based auto-update functionality
 * NEW: WordPress native auto-update support
@@ -102,6 +116,9 @@ Yes! The plugin checks for updates from GitHub releases and can be auto-updated 
 * Basic Gravity Forms detection in pages and posts
 
 == Upgrade Notice ==
+
+= 2.2.0 =
+SECURITY RELEASE: This update includes important security hardening. All users should upgrade immediately.
 
 = 2.1.0 =
 This update adds auto-update capability from GitHub releases and WordPress native auto-update support.

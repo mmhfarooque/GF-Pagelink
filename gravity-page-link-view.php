@@ -23,13 +23,14 @@ if ( ! defined( 'WPINC' ) ) {
 }
 
 // Define plugin constants
-define( 'GPLV_VERSION', '2.1.0' );
+define( 'GPLV_VERSION', '2.2.0' );
 define( 'GPLV_MIN_WP_VERSION', '5.0' );
 define( 'GPLV_MIN_PHP_VERSION', '7.2' );
 define( 'GPLV_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'GPLV_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'GPLV_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
 define( 'GPLV_GITHUB_REPO', 'mmhfarooque/GF-Pagelink' );
+define( 'GPLV_CACHE_EXPIRATION', 6 * HOUR_IN_SECONDS );
 
 /**
  * GitHub Plugin Updater Class
@@ -99,33 +100,50 @@ class GPLV_GitHub_Updater {
     }
 
     /**
-     * Get GitHub release info
+     * Get GitHub release info with caching
      */
     private function get_github_release_info() {
         if ( ! empty( $this->github_response ) ) {
             return;
         }
 
+        // Check transient cache first
+        $cache_key = 'gplv_github_release_' . md5( GPLV_GITHUB_REPO );
+        $cached_response = get_transient( $cache_key );
+
+        if ( false !== $cached_response ) {
+            $this->github_response = $cached_response;
+            return;
+        }
+
         // Build API URL for latest release
         $api_url = sprintf(
             'https://api.github.com/repos/%s/%s/releases/latest',
-            $this->github_username,
-            $this->github_repo
+            esc_attr( $this->github_username ),
+            esc_attr( $this->github_repo )
         );
 
-        // Make API request
+        // Make API request with proper user agent
         $response = wp_remote_get( $api_url, array(
             'headers' => array(
-                'Accept' => 'application/vnd.github.v3+json',
+                'Accept'     => 'application/vnd.github.v3+json',
+                'User-Agent' => 'WordPress/' . get_bloginfo( 'version' ) . '; ' . get_bloginfo( 'url' ),
             ),
-            'timeout' => 10,
+            'timeout' => 15,
+            'sslverify' => true,
         ) );
 
         if ( is_wp_error( $response ) || wp_remote_retrieve_response_code( $response ) !== 200 ) {
             return;
         }
 
-        $this->github_response = json_decode( wp_remote_retrieve_body( $response ) );
+        $body = wp_remote_retrieve_body( $response );
+        $this->github_response = json_decode( $body );
+
+        // Cache the response
+        if ( ! empty( $this->github_response ) ) {
+            set_transient( $cache_key, $this->github_response, GPLV_CACHE_EXPIRATION );
+        }
     }
 
     /**
@@ -248,12 +266,11 @@ class GPLV_GitHub_Updater {
      */
     private function parse_changelog( $body ) {
         if ( empty( $body ) ) {
-            return '<p>See the <a href="https://github.com/' . GPLV_GITHUB_REPO . '/releases" target="_blank">GitHub releases page</a> for the full changelog.</p>';
+            return '<p>See the <a href="' . esc_url( 'https://github.com/' . GPLV_GITHUB_REPO . '/releases' ) . '" target="_blank" rel="noopener noreferrer">GitHub releases page</a> for the full changelog.</p>';
         }
 
-        // Convert markdown to basic HTML
-        $changelog = esc_html( $body );
-        $changelog = nl2br( $changelog );
+        // Sanitize and convert markdown to basic HTML
+        $changelog = wp_kses_post( nl2br( esc_html( $body ) ) );
 
         return '<div class="changelog">' . $changelog . '</div>';
     }
@@ -376,13 +393,13 @@ function gplv_requirements_notice() {
     if ( ! empty( $errors ) ) {
         ?>
         <div class="notice notice-error">
-            <p><strong><?php _e( 'Gravity Page Link View - Requirements Not Met', 'gravity-page-link-view' ); ?></strong></p>
+            <p><strong><?php esc_html_e( 'Jezweb GF Pagelink - Requirements Not Met', 'gravity-page-link-view' ); ?></strong></p>
             <ul style="list-style: disc; padding-left: 20px;">
                 <?php foreach ( $errors as $error ) : ?>
                     <li><?php echo esc_html( $error ); ?></li>
                 <?php endforeach; ?>
             </ul>
-            <p><?php _e( 'Please update your WordPress and PHP versions to use this plugin.', 'gravity-page-link-view' ); ?></p>
+            <p><?php esc_html_e( 'Please update your WordPress and PHP versions to use this plugin.', 'gravity-page-link-view' ); ?></p>
         </div>
         <?php
 
@@ -563,11 +580,18 @@ class Gravity_Page_Link_View {
      * Clear debug logs
      */
     public function clear_debug_logs() {
-        check_admin_referer( 'gplv_clear_logs' );
+        // Security: Verify nonce and capability
+        if ( ! check_admin_referer( 'gplv_clear_logs', '_wpnonce', false ) ) {
+            wp_die( esc_html__( 'Security check failed.', 'gravity-page-link-view' ), 403 );
+        }
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_die( esc_html__( 'You do not have permission to perform this action.', 'gravity-page-link-view' ), 403 );
+        }
 
         delete_option( 'gplv_debug_logs' );
 
-        wp_redirect( add_query_arg( array(
+        wp_safe_redirect( add_query_arg( array(
             'page'          => 'gravity-page-link-view',
             'tab'           => 'debug',
             'logs_cleared'  => '1',
@@ -579,31 +603,85 @@ class Gravity_Page_Link_View {
      * Export debug logs
      */
     public function export_debug_logs() {
-        check_admin_referer( 'gplv_export_logs' );
+        // Security: Verify nonce and capability
+        if ( ! check_admin_referer( 'gplv_export_logs', '_wpnonce', false ) ) {
+            wp_die( esc_html__( 'Security check failed.', 'gravity-page-link-view' ), 403 );
+        }
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_die( esc_html__( 'You do not have permission to perform this action.', 'gravity-page-link-view' ), 403 );
+        }
 
         $logs = $this->get_debug_logs();
 
-        // Set headers for download
-        header( 'Content-Type: text/plain' );
-        header( 'Content-Disposition: attachment; filename="gplv-debug-logs-' . date( 'Y-m-d-His' ) . '.log"' );
+        // Generate safe filename
+        $filename = 'gplv-debug-logs-' . gmdate( 'Y-m-d-His' ) . '.log';
+        $filename = sanitize_file_name( $filename );
 
-        echo "Gravity Page Link View - Debug Logs\n";
-        echo "Generated: " . current_time( 'mysql' ) . "\n";
+        // Set security headers for download
+        nocache_headers();
+        header( 'Content-Type: text/plain; charset=utf-8' );
+        header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
+        header( 'X-Content-Type-Options: nosniff' );
+        header( 'X-Frame-Options: DENY' );
+
+        echo "Jezweb GF Pagelink - Debug Logs\n";
+        echo "Generated: " . esc_html( current_time( 'mysql' ) ) . "\n";
+        echo "Plugin Version: " . esc_html( GPLV_VERSION ) . "\n";
         echo str_repeat( '=', 80 ) . "\n\n";
 
         if ( empty( $logs ) ) {
             echo "No debug logs found.\n";
         } else {
             foreach ( $logs as $log ) {
-                echo "[{$log['timestamp']}] {$log['message']}\n";
-                if ( ! empty( $log['context'] ) ) {
-                    echo "Context: " . json_encode( $log['context'], JSON_PRETTY_PRINT ) . "\n";
+                // Sanitize log output
+                $timestamp = isset( $log['timestamp'] ) ? esc_html( $log['timestamp'] ) : 'Unknown';
+                $message = isset( $log['message'] ) ? esc_html( $log['message'] ) : '';
+
+                echo "[{$timestamp}] {$message}\n";
+
+                if ( ! empty( $log['context'] ) && is_array( $log['context'] ) ) {
+                    // Remove any potentially sensitive data from context
+                    $safe_context = $this->sanitize_log_context( $log['context'] );
+                    echo "Context: " . wp_json_encode( $safe_context, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) . "\n";
                 }
                 echo str_repeat( '-', 80 ) . "\n";
             }
         }
 
         exit;
+    }
+
+    /**
+     * Sanitize log context to remove sensitive data
+     *
+     * @param array $context The context array
+     * @return array Sanitized context
+     */
+    private function sanitize_log_context( $context ) {
+        $sensitive_keys = array( 'password', 'secret', 'token', 'key', 'api_key', 'auth', 'credential' );
+        $sanitized = array();
+
+        foreach ( $context as $key => $value ) {
+            // Check if key contains sensitive terms
+            $is_sensitive = false;
+            foreach ( $sensitive_keys as $sensitive ) {
+                if ( stripos( $key, $sensitive ) !== false ) {
+                    $is_sensitive = true;
+                    break;
+                }
+            }
+
+            if ( $is_sensitive ) {
+                $sanitized[ $key ] = '[REDACTED]';
+            } elseif ( is_array( $value ) ) {
+                $sanitized[ $key ] = $this->sanitize_log_context( $value );
+            } else {
+                $sanitized[ $key ] = $value;
+            }
+        }
+
+        return $sanitized;
     }
 
     /**
@@ -630,8 +708,17 @@ class Gravity_Page_Link_View {
 
     /**
      * Find pages where a specific form is used
+     *
+     * @param int $form_id The Gravity Form ID
+     * @return array Array of usage locations
      */
     public function find_form_usage( $form_id ) {
+        // Security: Validate form_id is a positive integer
+        $form_id = absint( $form_id );
+        if ( $form_id <= 0 ) {
+            return array();
+        }
+
         $this->log_debug( "Starting form usage detection for Form ID: {$form_id}" );
 
         $usage_locations = array();
@@ -1503,21 +1590,32 @@ class Gravity_Page_Link_View {
             <div class="wrap">
                 <h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
                 <div class="notice notice-error">
-                    <p><?php _e( 'Gravity Forms is not active. Please install and activate Gravity Forms to use this plugin.', 'gravity-page-link-view' ); ?></p>
+                    <p><?php esc_html_e( 'Gravity Forms is not active. Please install and activate Gravity Forms to use this plugin.', 'gravity-page-link-view' ); ?></p>
                 </div>
             </div>
             <?php
             return;
         }
 
-        // Get current tab
-        $current_tab = isset( $_GET['tab'] ) ? sanitize_text_field( $_GET['tab'] ) : 'forms';
+        // Get current tab with whitelist validation
+        $allowed_tabs = array( 'forms', 'debug' );
+        $current_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'forms';
+        if ( ! in_array( $current_tab, $allowed_tabs, true ) ) {
+            $current_tab = 'forms';
+        }
 
         // Handle settings save
         if ( isset( $_POST['gplv_save_settings'] ) ) {
-            check_admin_referer( 'gplv_settings' );
-            update_option( 'gplv_debug_mode', isset( $_POST['gplv_debug_mode'] ) ? 1 : 0 );
-            echo '<div class="notice notice-success is-dismissible"><p>' . __( 'Settings saved.', 'gravity-page-link-view' ) . '</p></div>';
+            if ( ! check_admin_referer( 'gplv_settings', '_wpnonce', false ) ) {
+                wp_die( esc_html__( 'Security check failed.', 'gravity-page-link-view' ), 403 );
+            }
+            $debug_mode = isset( $_POST['gplv_debug_mode'] ) ? 1 : 0;
+            update_option( 'gplv_debug_mode', $debug_mode );
+            ?>
+            <div class="notice notice-success is-dismissible">
+                <p><?php esc_html_e( 'Settings saved.', 'gravity-page-link-view' ); ?></p>
+            </div>
+            <?php
         }
 
         ?>
@@ -1526,11 +1624,11 @@ class Gravity_Page_Link_View {
 
             <!-- Tabs -->
             <nav class="nav-tab-wrapper">
-                <a href="?page=gravity-page-link-view&tab=forms" class="nav-tab <?php echo $current_tab === 'forms' ? 'nav-tab-active' : ''; ?>">
-                    <?php _e( 'Form Locations', 'gravity-page-link-view' ); ?>
+                <a href="<?php echo esc_url( admin_url( 'admin.php?page=gravity-page-link-view&tab=forms' ) ); ?>" class="nav-tab <?php echo 'forms' === $current_tab ? 'nav-tab-active' : ''; ?>">
+                    <?php esc_html_e( 'Form Locations', 'gravity-page-link-view' ); ?>
                 </a>
-                <a href="?page=gravity-page-link-view&tab=debug" class="nav-tab <?php echo $current_tab === 'debug' ? 'nav-tab-active' : ''; ?>">
-                    <?php _e( 'Debug Logs', 'gravity-page-link-view' ); ?>
+                <a href="<?php echo esc_url( admin_url( 'admin.php?page=gravity-page-link-view&tab=debug' ) ); ?>" class="nav-tab <?php echo 'debug' === $current_tab ? 'nav-tab-active' : ''; ?>">
+                    <?php esc_html_e( 'Debug Logs', 'gravity-page-link-view' ); ?>
                 </a>
             </nav>
 
@@ -1678,7 +1776,7 @@ class Gravity_Page_Link_View {
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                             <h2 style="margin: 0;"><?php _e( 'Debug Logs', 'gravity-page-link-view' ); ?></h2>
                             <div>
-                                <form method="post" action="<?php echo admin_url( 'admin-post.php' ); ?>" style="display: inline;">
+                                <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display: inline;">
                                     <?php wp_nonce_field( 'gplv_export_logs' ); ?>
                                     <input type="hidden" name="action" value="gplv_export_logs">
                                     <button type="submit" class="button">
@@ -1686,20 +1784,20 @@ class Gravity_Page_Link_View {
                                         <?php _e( 'Export Logs', 'gravity-page-link-view' ); ?>
                                     </button>
                                 </form>
-                                <form method="post" action="<?php echo admin_url( 'admin-post.php' ); ?>" style="display: inline; margin-left: 10px;">
+                                <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display: inline; margin-left: 10px;">
                                     <?php wp_nonce_field( 'gplv_clear_logs' ); ?>
                                     <input type="hidden" name="action" value="gplv_clear_logs">
-                                    <button type="submit" class="button" onclick="return confirm('<?php _e( 'Are you sure you want to clear all debug logs?', 'gravity-page-link-view' ); ?>')">
+                                    <button type="submit" class="button" onclick="return confirm('<?php echo esc_js( __( 'Are you sure you want to clear all debug logs?', 'gravity-page-link-view' ) ); ?>')">
                                         <span class="dashicons dashicons-trash" style="vertical-align: middle;"></span>
-                                        <?php _e( 'Clear Logs', 'gravity-page-link-view' ); ?>
+                                        <?php esc_html_e( 'Clear Logs', 'gravity-page-link-view' ); ?>
                                     </button>
                                 </form>
                             </div>
                         </div>
 
-                        <?php if ( isset( $_GET['logs_cleared'] ) ) : ?>
+                        <?php if ( isset( $_GET['logs_cleared'] ) && '1' === $_GET['logs_cleared'] ) : ?>
                             <div class="notice notice-success is-dismissible">
-                                <p><?php _e( 'Debug logs cleared successfully.', 'gravity-page-link-view' ); ?></p>
+                                <p><?php esc_html_e( 'Debug logs cleared successfully.', 'gravity-page-link-view' ); ?></p>
                             </div>
                         <?php endif; ?>
 
@@ -1708,13 +1806,13 @@ class Gravity_Page_Link_View {
                         if ( ! $this->is_debug_mode() ) :
                         ?>
                             <div class="notice notice-info inline">
-                                <p><?php _e( 'Debug mode is currently disabled. Enable it above to start logging.', 'gravity-page-link-view' ); ?></p>
+                                <p><?php esc_html_e( 'Debug mode is currently disabled. Enable it above to start logging.', 'gravity-page-link-view' ); ?></p>
                             </div>
                         <?php endif; ?>
 
                         <?php if ( empty( $logs ) ) : ?>
                             <p style="color: #646970; font-style: italic;">
-                                <?php _e( 'No debug logs recorded yet. Enable debug mode and scan for forms to see logs here.', 'gravity-page-link-view' ); ?>
+                                <?php esc_html_e( 'No debug logs recorded yet. Enable debug mode and scan for forms to see logs here.', 'gravity-page-link-view' ); ?>
                             </p>
                         <?php else : ?>
                             <div class="gplv-log-entries" style="background: #f6f7f7; padding: 15px; max-height: 600px; overflow-y: auto; font-family: monospace; font-size: 13px; border: 1px solid #dcdcde;">
