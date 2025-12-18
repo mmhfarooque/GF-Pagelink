@@ -3,7 +3,7 @@
  * Plugin Name: Jezweb GF Pagelink
  * Plugin URI: https://jezweb.com.au/gravity-page-link-view
  * Description: Display all active Gravity Forms with page links where they are used. Supports all major page builders: Elementor, Divi, Beaver Builder, Oxygen, Bricks, Fusion (Avada), WPBakery, SiteOrigin, and more!
- * Version: 2.1.0
+ * Version: 2.2.0
  * Requires at least: 5.0
  * Requires PHP: 7.2
  * Author: Jezweb
